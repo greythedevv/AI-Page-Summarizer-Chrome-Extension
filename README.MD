@@ -6,7 +6,7 @@
 
 ## Demo
 
-[Insert your 2–5 minute demo video link here]
+[[Insert your 2–5 minute demo video link here](https://drive.google.com/file/d/1YFfAMpA0HT8F3G820WXC3Op4PJrgqBBj/view?usp=sharing)]
 
 ---
 
@@ -43,8 +43,8 @@
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pagemind-extension.git
-cd pagemind-extension
+git clone https://github.com/greythedevv/AI-Page-Summarizer-Chrome-Extension.git
+cd AI-Page-Summarizer-Chrome-Extension
 ```
 
 ### Step 2 — Install dependencies
@@ -311,5 +311,5 @@ After any rebuild, go to `chrome://extensions` and click the **↺ refresh icon*
 
 ## Submission
 
-**Slack Display Name**: greythedev 
+**Slack Display Name**: [greythedev] 
 **Deadline**: 5th May 2026
