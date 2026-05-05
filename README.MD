@@ -1,201 +1,310 @@
 # PageMind — AI Page Summarizer
 
-> A Chrome Extension that extracts meaningful content from any webpage and delivers structured AI summaries — bullet points, key insights, reading time, and in-page highlights.
+> A Chrome Extension (Manifest V3) that extracts meaningful content from any webpage and delivers structured AI summaries — bullet points, key insights, reading time, sentiment, and optional in-page highlights.
 
 ---
+
 
 ## Features
 
-- **Smart content extraction** — heuristic scoring avoids nav/footer clutter, prefers article body
-- **AI-powered summaries** — bullet points, key insights, overview, reading time, sentiment
-- **In-page highlighting** — marks key phrases directly on the page
-- **Multi-provider AI support** — OpenAI, Anthropic (Claude), Google Gemini
-- **Summary caching** — avoids duplicate API calls per URL (1-hour TTL)
-- **Three summary modes** — Brief (3 bullets), Standard (5), Detailed (8)
-- **Copy to clipboard** — clean markdown format
-- **Dark, typographic UI** — clean, minimal popup with no clutter
+| Feature | Details |
+|---|---|
+| Smart extraction | Heuristic scoring — prefers article body, excludes nav/ads/sidebars |
+| AI summaries | Overview, bullet points, key insights, reading time, sentiment |
+| Three modes | Brief (3 bullets) · Standard (5) · Detailed (8) |
+| In-page highlights | Marks key phrases on the page, toggleable |
+| Copy to clipboard | Clean markdown format |
+| Dark / Light mode | Persisted via `chrome.storage.local` |
+| Summary caching | Per-URL, 1-hour TTL — no duplicate API calls |
+| Multi-provider | OpenAI · Anthropic · Google Gemini |
+| Build-time secrets | API key injected via webpack + dotenv, never in source |
 
 ---
 
-## Setup Instructions
+## Local Installation (Load Unpacked)
+
+> The extension is **not** published to the Chrome Web Store. Follow these steps to install it locally.
 
 ### Prerequisites
+
+- Node.js ≥ 18
+- npm ≥ 9
 - Google Chrome (or any Chromium browser)
-- An API key from one of: [OpenAI](https://platform.openai.com/api-keys), [Anthropic](https://console.anthropic.com), or [Google AI Studio](https://aistudio.google.com/app/apikey)
+- An API key from one of:
+  - **Anthropic**: https://console.anthropic.com
+  - **OpenAI**: https://platform.openai.com/api-keys
+  - **Google Gemini**: https://aistudio.google.com/app/apikey
 
-### Installation (Local Extension)
+### Step 1 — Clone the repository
 
-1. **Download** this repository as a ZIP, or clone it:
-   ```bash
-   git clone https://github.com/your-username/ai-page-summarizer.git
-   ```
+```bash
+git clone https://github.com/YOUR_USERNAME/pagemind-extension.git
+cd pagemind-extension
+```
 
-2. Open Chrome and navigate to:
-   ```
-   chrome://extensions
-   ```
+### Step 2 — Install dependencies
 
-3. Enable **Developer mode** (toggle in the top-right corner).
+```bash
+npm install
+```
 
-4. Click **"Load unpacked"** and select the `ai-page-summarizer` folder.
+### Step 3 — Configure your API key
 
-5. The PageMind extension will appear in your extensions bar.  
-   Pin it for easy access.
+```bash
+cp .env.example .env
+```
 
-6. Click the extension icon → click **⚙ Settings** → enter your AI provider and API key → **Save**.
+Open `.env` and fill in your values:
 
-7. Navigate to any article or webpage and click **Summarize Page**.
+```env
+PAGEMIND_PROVIDER=anthropic          # or: openai | gemini
+PAGEMIND_API_KEY=your-key-here
+PAGEMIND_MODEL=                      # optional; leave blank for default
+```
+
+> ⚠️ **Never commit `.env`** — it is gitignored. Only `.env.example` (with no real values) is committed.
+
+### Step 4 — Build the extension
+
+```bash
+npm run build
+```
+
+This generates a `dist/` folder containing the installable extension.
+
+### Step 5 — Load into Chrome
+
+1. Open Chrome and navigate to `chrome://extensions`
+2. Enable **Developer mode** (toggle in the top-right corner)
+3. Click **"Load unpacked"**
+4. Select the `dist/` folder
+
+The PageMind icon (yellow star) appears in your toolbar. **Pin it** for easy access.
+
+### Step 6 — Use it
+
+Navigate to any article or webpage → click the PageMind icon → click **Summarize Page**.
+
+---
+
+## Project Structure
+
+```
+pagemind-extension/
+│
+├── src/                        # Source files (compiled by webpack)
+│   ├── background.js           # Service worker: AI calls, caching, highlights
+│   ├── content.js              # Content script: heuristic page extraction
+│   └── popup.js                # Popup controller: UI state + message passing
+│
+├── public/                     # Static assets (copied to dist/ as-is)
+│   ├── manifest.json           # Manifest V3 config
+│   ├── popup.html              # Popup markup
+│   ├── popup.css               # Popup styles (dark + light mode)
+│   └── icons/                  # 16 / 32 / 48 / 128 px PNG icons
+│
+├── dist/                       # ← BUILD OUTPUT (gitignored)
+│                               #   Load this folder as the extension
+│
+├── .env                        # ← YOUR SECRETS (gitignored, never committed)
+├── .env.example                # Shape of .env — safe to commit
+├── .gitignore
+├── package.json
+├── webpack.config.js           # Bundles src/, injects env vars at build time
+└── README.md
+```
 
 ---
 
 ## Architecture
 
-```
-ai-page-summarizer/
-├── manifest.json          # Manifest V3 config
-├── popup.html             # Extension popup UI
-├── popup.css              # Popup styles
-├── popup.js               # Popup interaction logic
-├── icons/                 # Extension icons (16, 32, 48, 128px)
-└── src/
-    ├── background.js      # Service worker: AI calls, caching, routing
-    └── content.js         # Content script: page extraction
-```
-
 ### Message Flow
 
 ```
-User clicks "Summarize"
-        │
-        ▼
-  popup.js (UI)
-        │  chrome.tabs.sendMessage →
-        ▼
-  content.js (EXTRACT_CONTENT)
-        │  Returns { content, title, url, wordCount }
-        ▼
-  popup.js
-        │  chrome.runtime.sendMessage →
-        ▼
-  background.js (service worker)
-        │  Checks cache → calls AI API
-        ▼
-  AI Provider (OpenAI / Anthropic / Gemini)
-        │  Returns structured JSON
-        ▼
-  background.js → caches result → responds
-        │
-        ▼
-  popup.js → renders summary UI
+┌─────────────────────────────────────────────────────────────┐
+│  User clicks "Summarize Page"                               │
+│         │                                                   │
+│         ▼                                                   │
+│  popup.js  ──sendMessage(EXTRACT_CONTENT)──▶  content.js   │
+│         │       (chrome.tabs.sendMessage)        │         │
+│         │                                        │         │
+│         │  ◀── { content, title, url, wordCount }┘         │
+│         │                                                   │
+│         │  ──sendMessage(SUMMARIZE_PAGE)──▶  background.js │
+│         │       (chrome.runtime.sendMessage)     │         │
+│         │                                        │         │
+│         │                              check cache         │
+│         │                                  │               │
+│         │                              cache hit?          │
+│         │                             ╱         ╲          │
+│         │                           YES          NO        │
+│         │                            │            │        │
+│         │                            │        call AI API  │
+│         │                            │            │        │
+│         │  ◀── { success, summary, fromCache } ───┘        │
+│         │                                                   │
+│         ▼                                                   │
+│  renderSummary() — textContent only, no innerHTML           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Content Extraction Strategy
+### Content Extraction Strategy (`src/content.js`)
 
-`content.js` uses a **heuristic scoring algorithm**:
+The content script uses a **two-pass heuristic algorithm** to find the main article body:
 
-1. **Semantic selectors first**: Checks for `<article>`, `[role="main"]`, `<main>`, and common CMS class patterns.
-2. **Density scoring**: For each `<div>` and `<section>`, scores by text length, paragraph count, and text-to-node density ratio.
-3. **Penalty selectors**: Elements matching `header`, `footer`, `nav`, `.sidebar`, `.ads` etc. are excluded.
-4. **Fallback**: If no good candidate found, strips penalty regions from `<body>` and uses all remaining text.
-5. **Sanitization**: Collapses whitespace, removes script/style content, normalizes newlines.
+**Pass 1 — Semantic selectors (fast path)**
+Checks a priority-ordered list of known content containers:
+`article` → `[role="main"]` → `main` → `.post-content` → `.entry-content` → …
 
----
+**Pass 2 — Density scoring (fallback)**
+If no semantic element is found, every `<div>` and `<section>` is scored:
 
-## AI Integration
+```
+score = textLength + (paragraphCount × 30) + (textDensity × 10)
+```
 
-### Providers Supported
+Elements are excluded (penalised) if they match: `header`, `footer`, `nav`, `aside`, `.sidebar`, `.ads`, `.comments`, `.social`, etc.
 
-| Provider | Default Model | Notes |
-|----------|--------------|-------|
-| OpenAI | `gpt-4o-mini` | Fast, cheap, high quality |
-| Anthropic | `claude-3-5-haiku-20241022` | Excellent instruction following |
-| Google | `gemini-1.5-flash` | Free tier available |
+Elements with a link-to-text ratio above 50% are treated as navigation and skipped.
 
-### Prompt Design
+**Pass 3 — Fallback**
+If neither pass finds a good candidate, the full `<body>` is used after stripping penalised regions.
 
-The background script sends a structured prompt instructing the model to return **only valid JSON** with a fixed schema:
+### AI Integration (`src/background.js`)
+
+```
+callAI()
+  │
+  ├── provider === "openai"    → callOpenAI()    → POST /v1/chat/completions
+  ├── provider === "anthropic" → callAnthropic() → POST /v1/messages
+  └── provider === "gemini"    → callGemini()    → POST /v1beta/models/:model:generateContent
+```
+
+All three providers receive the same structured prompt asking for a fixed JSON schema:
 
 ```json
 {
-  "summary": "2-3 sentence overview",
-  "bullets": ["point 1", ...],
-  "keyInsights": ["insight 1", ...],
+  "summary": "string",
+  "bullets": ["string"],
+  "keyInsights": ["string"],
   "readingTime": 5,
   "sentiment": "positive|neutral|negative|mixed",
-  "topics": ["topic1", ...],
-  "highlightPhrases": ["phrase1", ...]
+  "topics": ["string"],
+  "highlightPhrases": ["string"]
 }
 ```
 
-Content is capped at **12,000 characters** before sending to control token costs.
+The response parser strips markdown fences and falls back to regex JSON extraction if the model adds unexpected preamble.
 
-### Response Parsing
+### Caching (`chrome.storage.local`)
 
-Responses are cleaned of markdown fences (`\`\`\`json`) and then `JSON.parse`'d. A regex fallback extracts the JSON object if the model returns unexpected preamble.
+- Key format: `cache:<url>`
+- Value: `{ summary: {...}, timestamp: <ms> }`
+- TTL: 1 hour — stale entries are evicted on read
+- `CLEAR_CACHE` message removes all `cache:` prefixed keys
 
 ---
 
 ## Security Decisions
 
-### API Key Handling
-- **Never in source code** — keys are entered by the user via the popup settings UI
-- **Stored in `chrome.storage.local`** — sandboxed to the extension, inaccessible to web pages
-- **Never logged or transmitted** — only sent directly to the chosen AI provider endpoint
+### 1. API key — build-time injection, not runtime input
 
-### Content Security Policy
-```json
-"content_security_policy": {
-  "extension_pages": "script-src 'self'; object-src 'self'"
-}
+**Problem**: The extension must work out-of-the-box without the user entering credentials, but the key must not appear in any committed file.
+
+**Solution**: `webpack` + `dotenv-webpack` replaces `process.env.PAGEMIND_API_KEY` with a **string literal** at build time. The compiled `dist/` folder contains the baked-in key, but `dist/` is gitignored. Only `.env.example` (with placeholder values) is committed.
+
 ```
-Prevents inline scripts and external script loading in extension pages.
+Source code:  const API_KEY = process.env.PAGEMIND_API_KEY;
+After build:  const API_KEY = "sk-ant-...";   ← literal, in dist only
+```
 
-### XSS Prevention
-- All AI-generated text is set via `.textContent`, never `.innerHTML`
-- A `sanitizeText()` utility enforces length limits
-- In-page highlights use a controlled DOM injection via `chrome.scripting.executeScript`, which runs in the page's context but only touches text nodes
+### 2. All AI calls run in the background service worker
 
-### Minimal Permissions
+The content script and popup have no access to the API key. Only `background.js` makes outbound requests. This means:
+
+- Web pages cannot intercept the key via script injection
+- The popup's CSP (`script-src 'self'`) blocks any injected scripts
+
+### 3. XSS prevention — `.textContent` only
+
+Every piece of AI-generated text is inserted using `.textContent`, never `.innerHTML`. This means even if the AI returned `<script>alert(1)</script>`, it would be rendered as literal text.
+
+A `sanitize()` helper also enforces a 600-character length cap per field.
+
+### 4. Minimal permissions
+
 ```json
 "permissions": ["activeTab", "storage", "scripting"]
 ```
-- `activeTab`: Access only the currently active tab (not all tabs)
-- `storage`: For caching and settings only
-- `scripting`: To inject content scripts and the highlighter
-- No `<all_urls>` tab access; host permissions limited to the three AI API domains
 
-### Message Validation
-All `chrome.runtime.onMessage` handlers check `message.type` before processing. Unknown message types are silently ignored.
+- `activeTab`: access only the currently active tab (not all tabs)
+- `storage`: for caching and theme preference only
+- `scripting`: to inject the content script when the auto-injection hasn't run yet
+
+No `tabs` permission (broader tab access), no `<all_urls>` permission.
+
+### 5. Message validation
+
+The background service worker validates `message.type` before dispatching. Unknown message types are silently ignored, preventing message injection attacks.
 
 ---
 
 ## Trade-offs
 
-| Decision | Rationale |
-|----------|-----------|
-| **No readability.js bundling** | Keeps extension size tiny; custom heuristics handle 90% of cases |
-| **12,000 char content cap** | Balances cost/quality; most articles are under this |
-| **1-hour cache TTL** | Fresh enough for daily use, reduces redundant API calls |
-| **Single-file architecture** | No build step required — load unpacked and it works |
-| **No proxy server** | Simpler setup; API key stays local; tradeoff is browser-visible network requests |
-| **Module-type service worker** | Enables cleaner imports; `"type": "module"` in manifest |
+| Decision | Why | Cost |
+|---|---|---|
+| No readability.js | Zero bundle size; custom heuristics handle 90% of pages | Occasional misses on unusual layouts |
+| 12,000 char content cap | Keeps token cost low and latency fast | Very long pages are truncated |
+| 1-hour cache TTL | Balances freshness with API cost savings | Live pages won't re-summarise for an hour |
+| No build-time minification of CSS/HTML | Simpler pipeline; Chrome doesn't require it | Slightly larger popup files |
+| dist/ gitignored | Forces each user to build with their own key | Extra setup step for collaborators |
+| Direct browser→AI API calls | No proxy server needed; simpler architecture | Key visible in DevTools → Network tab of extension pages |
 
 ---
 
-## Limitations
+## Default Models
 
-- Does not work on `chrome://` pages (browser restrictions)
+| Provider | Default Model | Notes |
+|---|---|---|
+| Anthropic | `claude-haiku-4-5` | Fast, cheap, great instruction following |
+| OpenAI | `gpt-4o-mini` | Fast, cheap, widely available |
+| Gemini | `gemini-2.0-flash` | Fast, free tier available |
+
+Override by setting `PAGEMIND_MODEL` in `.env`.
+
+---
+
+## Development
+
+```bash
+# Watch mode — rebuilds on every file save
+npm run dev
+
+# Production build
+npm run build
+```
+
+After any rebuild, go to `chrome://extensions` and click the **↺ refresh icon** on the PageMind card.
+
+### Adding a new AI provider
+
+1. Add a `callYourProvider()` function in `src/background.js`
+2. Add a `case "yourprovider":` in `callAI()`
+3. Add the API domain to `host_permissions` in `public/manifest.json`
+4. Update `PAGEMIND_PROVIDER` in `.env`
+
+---
+
+## Known Limitations
+
+- Does not work on `chrome://` pages (browser restriction)
 - PDF pages are not supported
-- Heavy JavaScript-rendered content may need a moment to load before extracting
-- API keys are visible in DevTools → Application → Extension Storage (as with all local-only extensions)
+- Heavy JavaScript-rendered pages may need a moment after load before extracting
+- The API key is visible in `chrome://extensions → inspect views → background page → Network tab` — this is a fundamental constraint of direct browser-to-API calls without a proxy server
 
 ---
 
-## Development Notes
+## Submission
 
-No build tools required. Edit files and click **"Update"** in `chrome://extensions` to reload.
-
-To add a new AI provider:
-1. Add a case in `callAI()` inside `background.js`
-2. Add an `<option>` to `#providerSelect` in `popup.html`
-3. Add the API domain to `host_permissions` in `manifest.json`
+**Slack Display Name**: [your name here]  
+**Deadline**: 5th May 2026

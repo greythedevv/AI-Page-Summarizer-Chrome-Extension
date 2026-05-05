@@ -2,27 +2,31 @@
   "manifest_version": 3,
   "name": "PageMind — AI Page Summarizer",
   "version": "1.0.0",
-  "description": "Instantly summarize any webpage with AI. Get bullet-point summaries, key insights, and reading time estimates.",
+  "description": "Instantly summarize any webpage with AI. Bullet-point summaries, key insights, reading time, and in-page highlights.",
+
   "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
       "128": "icons/icon128.png"
     },
     "default_title": "PageMind — Summarize this page"
   },
+
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
   },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -30,16 +34,19 @@
       "run_at": "document_idle"
     }
   ],
+
   "permissions": [
     "activeTab",
     "storage",
     "scripting"
   ],
+
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
     "https://generativelanguage.googleapis.com/*"
   ],
+
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
