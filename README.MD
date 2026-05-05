@@ -38,7 +38,7 @@
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pagemind-extension.git
+git clone https://github.com/greythedevv/AI-Page-Summarizer-Chrome-Extension.git
 cd pagemind-extension
 ```
 
