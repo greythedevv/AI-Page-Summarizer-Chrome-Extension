@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PageMind</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M11 2L13.5 8H20L14.5 12L17 18L11 14L5 18L7.5 12L2 8H8.5L11 2Z" fill="currentColor"/>
+      </svg>
+    </div>
+    <span class="logo-name">PageMind</span>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── Page Info ────────────────────────────────────────────────────────────── -->
+<div class="page-info" id="pageInfo">
+  <div class="page-favicon" id="pageFavicon"></div>
+  <div class="page-meta">
+    <p class="page-title" id="pageTitle">Loading...</p>
+    <p class="page-domain" id="pageDomain"></p>
+  </div>
+</div>
+
+<!-- ── Main Panel ───────────────────────────────────────────────────────────── -->
+<main class="main" id="mainPanel">
+
+  <!-- Empty State -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+    </div>
+    <p class="empty-title">Ready to summarize</p>
+    <p class="empty-sub">Click below to extract and analyze this page with AI.</p>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state hidden" id="loadingState">
+    <div class="loader-ring">
+      <div class="loader-dot"></div>
+    </div>
+    <p class="loading-text" id="loadingText">Extracting content...</p>
+    <p class="loading-sub">This takes a few seconds</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state hidden" id="errorState">
+    <div class="error-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <p class="error-title" id="errorTitle">Something went wrong</p>
+    <p class="error-msg" id="errorMsg"></p>
+    <button class="btn btn-ghost btn-sm" id="retryBtn">Try again</button>
+  </div>
+
+  <!-- Summary Output -->
+  <div class="summary-panel hidden" id="summaryPanel">
+
+    <!-- Meta strip -->
+    <div class="summary-meta">
+      <span class="meta-chip" id="readingTimeChip">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="readingTime">— min</span>
+      </span>
+      <span class="meta-chip" id="sentimentChip">
+        <span id="sentimentIcon">○</span>
+        <span id="sentimentLabel">—</span>
+      </span>
+      <span class="meta-chip cache-chip hidden" id="cacheChip">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+        cached
+      </span>
+    </div>
+
+    <!-- Topics -->
+    <div class="topics-row" id="topicsRow"></div>
+
+    <!-- Summary -->
+    <section class="summary-section">
+      <h3 class="section-label">Overview</h3>
+      <p class="summary-text" id="summaryText"></p>
+    </section>
+
+    <!-- Key Points -->
+    <section class="summary-section">
+      <h3 class="section-label">Key Points</h3>
+      <ul class="bullets-list" id="bulletsList"></ul>
+    </section>
+
+    <!-- Insights -->
+    <section class="summary-section">
+      <h3 class="section-label">Insights</h3>
+      <div class="insights-grid" id="insightsGrid"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ── Action Bar ───────────────────────────────────────────────────────────── -->
+<footer class="action-bar">
+  <div class="mode-selector" id="modeSelector">
+    <button class="mode-btn active" data-mode="standard">Standard</button>
+    <button class="mode-btn" data-mode="brief">Brief</button>
+    <button class="mode-btn" data-mode="detailed">Detailed</button>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-primary" id="summarizeBtn">
+      <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+      Summarize Page
+    </button>
+    <div class="secondary-actions" id="secondaryActions">
+      <button class="icon-btn" id="highlightBtn" title="Highlight key phrases on page" aria-label="Highlight key phrases">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="copyBtn" title="Copy summary" aria-label="Copy summary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="clearBtn" title="Clear summary" aria-label="Clear summary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14H6L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4h6v2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Settings Panel ────────────────────────────────────────────────────────── -->
+<div class="settings-overlay hidden" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2 class="settings-title">Settings</h2>
+      <button class="icon-btn" id="closeSettingsBtn" aria-label="Close settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="settings-body">
+      <div class="field">
+        <label class="field-label" for="providerSelect">AI Provider</label>
+        <select class="field-input" id="providerSelect">
+          <option value="openai">OpenAI (GPT-4o mini)</option>
+          <option value="anthropic">Anthropic (Claude Haiku)</option>
+          <option value="gemini">Google Gemini Flash</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="apiKeyInput">
+          API Key
+          <span class="field-hint">Stored locally, never sent elsewhere</span>
+        </label>
+        <div class="key-input-wrap">
+          <input class="field-input" type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false"/>
+          <button class="icon-btn key-toggle" id="toggleKeyBtn" aria-label="Toggle key visibility">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="eyeIcon">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        <p class="field-note" id="keyStatus"></p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="modelInput">Model <span class="field-hint">(optional override)</span></label>
+        <input class="field-input" type="text" id="modelInput" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022"/>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+        <button class="btn btn-ghost btn-sm" id="clearCacheBtn">Clear Cache</button>
+      </div>
+
+      <div class="provider-links">
+        <p class="provider-links-title">Get an API key:</p>
+        <a href="https://platform.openai.com/api-keys" target="_blank" class="provider-link">OpenAI →</a>
+        <a href="https://console.anthropic.com" target="_blank" class="provider-link">Anthropic →</a>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="provider-link">Google AI →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
