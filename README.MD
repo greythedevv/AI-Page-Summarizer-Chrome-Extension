@@ -4,6 +4,11 @@
 
 ---
 
+## Demo
+
+[Insert your 2–5 minute demo video link here]
+
+---
 
 ## Features
 
@@ -38,7 +43,7 @@
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/greythedevv/AI-Page-Summarizer-Chrome-Extension.git
+git clone https://github.com/YOUR_USERNAME/pagemind-extension.git
 cd pagemind-extension
 ```
 
@@ -54,12 +59,12 @@ npm install
 cp .env.example .env
 ```
 
-Open `.env` and fill in your values (no spaces around the `=`):
+Open `.env` and fill in your values:
 
 ```env
-PAGEMIND_PROVIDER=anthropic
-PAGEMIND_API_KEY=sk-ant-...your-actual-key-here...
-PAGEMIND_MODEL=claude-haiku-4-5
+PAGEMIND_PROVIDER=anthropic          # or: openai | gemini
+PAGEMIND_API_KEY=your-key-here
+PAGEMIND_MODEL=                      # optional; leave blank for default
 ```
 
 > ⚠️ **Never commit `.env`** — it is gitignored. Only `.env.example` (with no real values) is committed.
@@ -70,7 +75,7 @@ PAGEMIND_MODEL=claude-haiku-4-5
 npm run build
 ```
 
-This bundles your source files and **injects your API key as a string literal** into the compiled code. The `dist/` folder is generated and ready to load into Chrome — it contains your baked-in credentials and is gitignored.
+This generates a `dist/` folder containing the installable extension.
 
 ### Step 5 — Load into Chrome
 
@@ -97,33 +102,22 @@ pagemind-extension/
 │   ├── content.js              # Content script: heuristic page extraction
 │   └── popup.js                # Popup controller: UI state + message passing
 │
-├── public/                     # Static assets (copied to dist/ during build)
+├── public/                     # Static assets (copied to dist/ as-is)
 │   ├── manifest.json           # Manifest V3 config
 │   ├── popup.html              # Popup markup
 │   ├── popup.css               # Popup styles (dark + light mode)
 │   └── icons/                  # 16 / 32 / 48 / 128 px PNG icons
 │
-├── dist/                       # BUILD OUTPUT (gitignored)
-│   ├── src/                    # Compiled JS bundles with API key injected
-│   ├── manifest.json           # Copied from public/
-│   ├── popup.html              # Copied from public/
-│   ├── popup.css               # Copied from public/
-│   └── icons/                  # Copied from public/
+├── dist/                       # ← BUILD OUTPUT (gitignored)
+│                               #   Load this folder as the extension
 │
-├── .env                        # YOUR SECRETS (gitignored, never committed)
-├── .env.example                # Environment variable schema — safe to commit
-├── .gitignore                  # Ignores .env, dist/, node_modules/
-├── package.json                # Dependencies and build scripts
-├── package-lock.json           # Locked dependency versions
-├── webpack.config.js           # Bundles src/, copies public/, injects API key
-└── README.md                   # This file
+├── .env                        # ← YOUR SECRETS (gitignored, never committed)
+├── .env.example                # Shape of .env — safe to commit
+├── .gitignore
+├── package.json
+├── webpack.config.js           # Bundles src/, injects env vars at build time
+└── README.md
 ```
-
-**After running `npm run build`:**
-- All files in `src/` are compiled and minified into `dist/src/`
-- The API key is injected as a string literal into `dist/src/background.js`
-- All assets from `public/` are copied to `dist/`
-- The `dist/` folder is ready to load into Chrome at `chrome://extensions`
 
 ---
 
@@ -317,5 +311,5 @@ After any rebuild, go to `chrome://extensions` and click the **↺ refresh icon*
 
 ## Submission
 
-**Slack Display Name**: greythedev
+**Slack Display Name**: greythedev 
 **Deadline**: 5th May 2026
