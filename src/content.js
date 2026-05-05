@@ -1,38 +1,47 @@
 /**
  * PageMind — Content Script
- * Extracts readable, meaningful content from the current page.
- * Uses heuristic filtering to prefer article content over chrome/nav.
+ * ──────────────────────────
+ * Runs in the context of every page at document_idle.
+ * Responds to EXTRACT_CONTENT messages from the popup.
+ *
+ * Extraction strategy (in order):
+ *   1. Semantic selectors  — article, main, [role=main], known CMS classes
+ *   2. Density scoring     — score every div/section by text length,
+ *                            paragraph count, and text-to-node ratio
+ *   3. Fallback            — strip penalties from body and use remainder
  */
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "EXTRACT_CONTENT") {
-    try {
-      const result = extractPageContent();
-      sendResponse({ success: true, ...result });
-    } catch (err) {
-      sendResponse({ success: false, error: err.message });
-    }
-    return true;
+  if (message?.type !== "EXTRACT_CONTENT") return;
+
+  try {
+    const result = extractPageContent();
+    sendResponse({ success: true, ...result });
+  } catch (err) {
+    sendResponse({ success: false, error: err.message });
   }
+
+  return true; // keep async channel open
 });
 
+// ─── Entry Point ──────────────────────────────────────────────────────────────
 function extractPageContent() {
-  const title = document.title || "Untitled Page";
-  const url = location.href;
-
-  // Score-based candidate selector
+  const title     = document.title || "Untitled Page";
+  const url       = location.href;
   const candidate = findBestContentElement();
-  const rawText = candidate
+  const rawText   = candidate
     ? extractTextFromElement(candidate)
     : extractFallbackText();
 
-  const cleanText = sanitizeText(rawText);
-  const wordCount = countWords(cleanText);
+  const content   = sanitizeText(rawText);
+  const wordCount = countWords(content);
 
-  return { title, url, content: cleanText, wordCount };
+  return { title, url, content, wordCount };
 }
 
-// ─── Candidate Scoring ────────────────────────────────────────────────────────
+// ─── Selector Lists ───────────────────────────────────────────────────────────
+
+// Elements that are likely to contain the main article content
 const BOOST_SELECTORS = [
   "article",
   '[role="main"]',
@@ -40,42 +49,44 @@ const BOOST_SELECTORS = [
   ".post-content",
   ".entry-content",
   ".article-body",
-  ".story-body",
   ".article__body",
+  ".story-body",
   ".post-body",
+  ".td-post-content",
+  ".mkd-post-text",
+  "#article-body",
+  "#main-content",
+  ".main-content",
   "#content",
   ".content",
-  ".main-content",
 ];
 
+// Elements that are unlikely to contain useful reading content
 const PENALTY_SELECTORS = [
-  "header",
-  "footer",
-  "nav",
-  "aside",
-  ".sidebar",
-  ".navigation",
-  ".menu",
-  ".ads",
-  ".advertisement",
-  ".comments",
-  ".related",
-  ".social",
-  ".share",
-  ".cookie",
-  ".newsletter",
+  "header", "footer", "nav", "aside",
+  ".sidebar", ".side-bar",
+  ".navigation", ".nav", ".menu",
+  ".ads", ".ad", ".advertisement", ".advert",
+  ".comments", ".comment-section",
+  ".related", ".related-posts",
+  ".social", ".social-share", ".share-buttons",
+  ".cookie", ".cookie-banner",
+  ".newsletter", ".subscribe",
+  ".popup", ".modal",
+  '[aria-label="advertisement"]',
 ];
 
+// ─── Candidate Finder ─────────────────────────────────────────────────────────
 function findBestContentElement() {
-  // 1. Try semantic article-first selectors
+  // Pass 1: semantic selectors in priority order
   for (const sel of BOOST_SELECTORS) {
     const el = document.querySelector(sel);
     if (el && getTextLength(el) > 300) return el;
   }
 
-  // 2. Density scoring: find the <div>/<section> with highest text-to-node ratio
+  // Pass 2: density scoring across all block elements
   const candidates = [...document.querySelectorAll("div, section, article")];
-  let bestEl = null;
+  let bestEl    = null;
   let bestScore = 0;
 
   for (const el of candidates) {
@@ -83,7 +94,7 @@ function findBestContentElement() {
     const score = scoreElement(el);
     if (score > bestScore) {
       bestScore = score;
-      bestEl = el;
+      bestEl    = el;
     }
   }
 
@@ -91,22 +102,25 @@ function findBestContentElement() {
 }
 
 function scoreElement(el) {
-  const text = getTextLength(el);
-  if (text < 200) return 0;
+  const textLen = getTextLength(el);
+  if (textLen < 200) return 0;
 
-  const linkText = getLinkTextLength(el);
-  const linkRatio = linkText / (text || 1);
-  if (linkRatio > 0.5) return 0; // nav-heavy, skip
+  // Heavily nav-linked elements are likely menus, not articles
+  const linkLen   = getLinkTextLength(el);
+  const linkRatio = linkLen / (textLen || 1);
+  if (linkRatio > 0.5) return 0;
 
   const paragraphs = el.querySelectorAll("p").length;
-  const density = text / (el.querySelectorAll("*").length || 1);
+  const nodeCount  = el.querySelectorAll("*").length || 1;
+  const density    = textLen / nodeCount;
 
-  return text + paragraphs * 30 + density * 10;
+  // Weight: raw length + paragraph bonus + density bonus
+  return textLen + paragraphs * 30 + density * 10;
 }
 
 function isPenalized(el) {
   for (const sel of PENALTY_SELECTORS) {
-    if (el.matches(sel) || el.closest(sel)) return true;
+    if (el.matches?.(sel) || el.closest?.(sel)) return true;
   }
   return false;
 }
@@ -117,51 +131,53 @@ function getTextLength(el) {
 
 function getLinkTextLength(el) {
   return [...el.querySelectorAll("a")]
-    .reduce((sum, a) => sum + (a.textContent || "").length, 0);
+    .reduce((sum, a) => sum + (a.textContent || "").trim().length, 0);
 }
 
 // ─── Text Extraction ──────────────────────────────────────────────────────────
 function extractTextFromElement(el) {
-  // Clone to safely manipulate
   const clone = el.cloneNode(true);
 
-  // Remove noise
-  const noiseSelectors = [
-    "script", "style", "noscript", "iframe", "img", "svg",
-    "figure", "button", "input", "select", "form",
-    ".ad", ".ads", ".advertisement", ".social-share",
+  // Remove noise nodes
+  [
+    "script", "style", "noscript", "iframe",
+    "img", "svg", "figure", "picture",
+    "button", "input", "select", "textarea", "form",
+    ".ad", ".ads", ".advertisement",
+    ".social-share", ".share",
     '[aria-hidden="true"]',
-  ];
-  noiseSelectors.forEach((sel) => {
+  ].forEach((sel) => {
     clone.querySelectorAll(sel).forEach((n) => n.remove());
   });
 
-  // Preserve paragraph structure
-  clone.querySelectorAll("p, h1, h2, h3, h4, li, blockquote").forEach((el) => {
-    el.insertAdjacentText("afterend", "\n");
+  // Insert newlines after block-level elements to preserve structure
+  clone.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote, td").forEach((node) => {
+    node.insertAdjacentText("afterend", "\n");
   });
 
   return clone.textContent || "";
 }
 
 function extractFallbackText() {
-  // Last resort: body text minus penalized regions
-  const body = document.body.cloneNode(true);
+  const clone = document.body.cloneNode(true);
+
+  // Remove penalized regions entirely
   PENALTY_SELECTORS.forEach((sel) => {
-    body.querySelectorAll(sel).forEach((n) => n.remove());
+    clone.querySelectorAll(sel).forEach((n) => n.remove());
   });
-  ["script", "style", "noscript"].forEach((tag) => {
-    body.querySelectorAll(tag).forEach((n) => n.remove());
+  ["script", "style", "noscript", "iframe"].forEach((tag) => {
+    clone.querySelectorAll(tag).forEach((n) => n.remove());
   });
-  return body.textContent || "";
+
+  return clone.textContent || "";
 }
 
-// ─── Sanitization ─────────────────────────────────────────────────────────────
+// ─── Text Utilities ───────────────────────────────────────────────────────────
 function sanitizeText(text) {
   return text
-    .replace(/[ \t]+/g, " ")           // collapse horizontal whitespace
-    .replace(/\n{3,}/g, "\n\n")        // max 2 consecutive newlines
-    .replace(/[^\S\n]+\n/g, "\n")      // trailing spaces before newlines
+    .replace(/[ \t]+/g, " ")       // collapse horizontal whitespace
+    .replace(/\n{3,}/g, "\n\n")    // max two consecutive newlines
+    .replace(/[^\S\n]+\n/g, "\n")  // no trailing spaces before newlines
     .trim();
 }
 
